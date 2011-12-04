@@ -1,6 +1,10 @@
+# miersiel (c) Alex Levenson 2011, All Rights Reserved
+
 import sys
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
+
+import physics
 
 class Game:
 	def __init__(self, screen):
@@ -9,6 +13,7 @@ class Game:
 		self.clock = pygame.time.Clock()
 		self.bgColor = (255, 255, 255)
 		self.running = False
+		self.simulator = physics.PhysicsSimulator(self)
 
 	def run(self):
 		# the game's main loop
@@ -20,6 +25,9 @@ class Game:
 					# bye bye! Hope you had fun!
 					self.running = False
 					break
+					
+			# update the physics engine
+			self.simulator.update()
 
 			# clear the display
 			self.screen.fill(self.bgColor)
