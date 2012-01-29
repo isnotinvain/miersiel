@@ -14,6 +14,9 @@ class Automaton(object):
 	def update(self):
 		pass
 
+	def communicate(self):
+		pass
+
 	def draw(self, screen):
 		pass
 

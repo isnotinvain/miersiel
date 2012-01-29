@@ -33,7 +33,7 @@ class Game:
 
 	def creation(self):
 		for i in xrange(10):
-			x,y = (x * random.random() for x in self.worldSize)
+			x,y = ((x * random.random() * 0.8) + x * 0.1 for x in self.worldSize)
 			self.env.addTon(HerdBot(self.env,self.simulator, (x,y)))
 
 	def run(self):
@@ -52,6 +52,9 @@ class Game:
 
 			for ton in self.env.getTons():
 				ton.update()
+
+			for ton in self.env.getTons():
+				ton.communicate()
 
 			# clear the display
 			self.screen.fill(self.bgColor)
@@ -74,7 +77,7 @@ def main(args):
 	size = pygame.display.list_modes()[0]
 	size = map(lambda x : int(x * 0.75), size)
 	screen = pygame.display.set_mode(size)
-
+	pygame.font_instance = pygame.font.Font(None, 20)
 	# create an instance of the game
 	game = Game(screen)
 
