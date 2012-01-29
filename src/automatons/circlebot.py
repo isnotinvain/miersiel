@@ -30,7 +30,7 @@ class CircleBot(Automaton):
 		self.torque = 0
 		self.maxTorque = 10
 
-		self.sensors['nose'] = Nose(self.env, self, 5.0)
+		self.sensors['nose'] = Nose(self.env, self, 2.0, shouldDraw=True)
 
 	def getCenter(self):
 		return self.body.GetWorldCenter().tuple()
@@ -94,6 +94,7 @@ class CircleBot(Automaton):
 	def face(self, pt, kp=1.0, kd=0.2):
 		desired = -1 * (util.getAngle(self.getCenter(), pt) + (util.halfPi))
 		self.turnTo(desired, kp, kd)
+		return desired
 
 	def walkForwards(self, distance):
 		cAngle = util.normalizeAngle(self.body.GetAngle())
@@ -116,9 +117,9 @@ class WanderBot(CircleBot):
 		self.desiredAngle = random.random() * util.twoPi
 
 	def update(self):
-		self.desiredAngle += (random.random() * (util.twoPi / 25.0)) - util.twoPi/50.0
+		self.desiredAngle += (random.random() * (util.twoPi/ 10.0)) - util.twoPi/ 20.0
 		self.turnTo(self.desiredAngle)
-		self.walkForwards(0.8)
+		self.walkForwards(1.0)
 
 		CircleBot.update(self)
 
@@ -154,14 +155,15 @@ class HerdBot(CircleBot):
 						self.isLeader = False
 					if self.herdDist == minHerdDist and random.random() >= 0.5:
 						self.isLeader = False
-				
+
 				if util.distance2(self.getCenter(), self.hold) > 5.0:
-					self.goTo(self.hold)
+					self.desiredAngle = self.face(self.hold)
+					self.walkForwards(1.0)
 				else:
 					self.wandering = True
-					self.desiredAngle += (random.random() * (util.twoPi / 25.0)) - util.twoPi/50.0
+					self.desiredAngle += (random.random() * (util.twoPi / 10.0)) - util.twoPi/ 20.0
 					self.turnTo(self.desiredAngle)
-					self.walkForwards(0.8)
+					self.walkForwards(1.0)
 			else:
 				if not self.myLeader:
 					try:
@@ -170,12 +172,14 @@ class HerdBot(CircleBot):
 						pass
 				if self.myLeader:
 					if util.distance2(self.getCenter(), self.myLeader.getCenter()) > 5.0:
-						self.goTo(self.myLeader.getCenter())
+						self.desiredAngle = self.face(self.myLeader.getCenter())
+						self.walkForwards(1.0)
+
 					else:
 						self.wandering = True
-						self.desiredAngle += (random.random() * (util.twoPi / 25.0)) - util.twoPi/50.0
+						self.desiredAngle += (random.random() * (util.twoPi / 10.0)) - util.twoPi/ 20.0
 						self.turnTo(self.desiredAngle)
-						self.walkForwards(0.8)
+						self.walkForwards(1.0)
 
 		def draw(self, screen):
 			self.drawColor = (0,150,0) if self.isLeader else self.color
