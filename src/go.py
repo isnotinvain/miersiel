@@ -32,7 +32,7 @@ class Game:
 		self.creation()
 
 	def creation(self):
-		for i in xrange(10):
+		for i in xrange(50):
 			x,y = ((x * random.random() * 0.8) + x * 0.1 for x in self.worldSize)
 			self.env.addTon(HerdBot(self.env,self.simulator, (x,y)))
 

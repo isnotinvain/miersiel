@@ -25,7 +25,12 @@ class CircleBot(Automaton):
 		self.body.CreateShape(bodyCircleDef)
 		self.body.SetMassFromShapes()
 
-		self.sensors['nose'] = Nose(self.env, self, 100.0, shouldDraw=True)
+		self.force = (0,0)
+		self.maxForce = 10
+		self.torque = 0
+		self.maxTorque = 10
+
+		self.sensors['nose'] = Nose(self.env, self, 5.0, shouldDraw=True)
 
 	def getCenter(self):
 		return self.body.GetWorldCenter().tuple()
@@ -42,6 +47,43 @@ class CircleBot(Automaton):
 		end = self.env.toScreen((x, y))
 		pygame.draw.line(screen, (0, 0, 0), center, end, 1)
 
+	def update(self):
+		self._applyForces()
+		self._applyTorques()
+
+	def kill(self):
+		self.simulator.world.DestroyBody(self.body)
+
+	def applyForce(self, f):
+		self.force = util.vecAdd(self.force, f)
+
+	def setForce(self, f):
+		self.force = f
+
+	def _applyForces(self):
+		self.body.ApplyForce(util.ceilVec(self.force, self.maxForce), self.body.GetWorldCenter())
+		self.force = (0, 0)
+
+	def applyTorque(self, t):
+		self.torque += t
+
+	def setTorque(self, t):
+		self.torque = t
+
+	def _applyTorques(self):
+		if abs(self.torque) > self.maxTorque:
+			self.torque = (abs(self.torque) / self.torque) * self.maxTorque
+		self.body.ApplyTorque(self.torque)
+		self.torque = 0
+
+	def goTo(self,target,kp=1.0,kd=1.0):
+		pos = self.getCenter()
+		distX,distY = target[0] - pos[0], target[1] - pos[1]
+		vX,vY = self.body.GetLinearVelocity().tuple()
+		Fx = kp*distX - kd*vX
+		Fy = kp*distY - kd*vY
+		self.setForce((Fx,Fy))
+
 	def __repr__(self):
 		return "bot at: " + str(self.getCenter()) + " id: " + str(id(self))
 
@@ -52,10 +94,13 @@ class HerdBot(CircleBot):
 			self.herdDist = None
 			self.isLeader = True
 			self.friends = None
+			self.hold = self.getCenter()
 
 		def update(self):
 			self.friends = self.nose.read()
 			self.herdDist = sum(util.distance2(self.getCenter(), friend.getCenter()) for friend in self.friends)
+
+			CircleBot.update(self)
 
 		def communicate(self):
 			if self.isLeader:
@@ -66,13 +111,21 @@ class HerdBot(CircleBot):
 						self.isLeader = False
 					if self.herdDist == minHerdDist and random.random() >= 0.5:
 						self.isLeader = False
+				self.goTo(self.hold)
+			else:
+				try:
+					leader = (friend for friend in self.friends if friend.isLeader).next()
+					if util.distance2(self.getCenter(), leader.getCenter()) > 1.0:
+						self.goTo(leader.getCenter())
+				except StopIteration:
+					pass
 
 		def draw(self, screen):
 			self.drawColor = (0,150,0) if self.isLeader else self.color
 			CircleBot.draw(self, screen)
-			text = pygame.font_instance.render(str(self.herdDist), 1, (0,0,0))
-			center = self.getCenter()
-			screen.blit(text, self.env.toScreen(center))
+#			text = pygame.font_instance.render(str(self.herdDist), 1, (0,0,0))
+#			center = self.getCenter()
+#			screen.blit(text, self.env.toScreen(center))
 			#center = self.getCenter()
 			#ex, ey = center
 			#ey += self.herdDist * 0.1
