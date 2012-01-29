@@ -71,7 +71,7 @@ class PhysicsSimulator(object):
 					bodylist.append(body)
 			return bodylist
 
-	def bodiesInRegion(self, leftTop, rightBottom, numBodies=100):
+	def bodiesInRegion(self, leftTop, rightBottom, numBodies=1000):
 		left, top = leftTop
 		right, bottom = rightBottom
 

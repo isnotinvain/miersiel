@@ -7,8 +7,8 @@ import Box2D as box2d
 
 class CircleBot(Automaton):
 
-	def __init__(self, simulation, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5):
-		Automaton.__init__(self, simulation)
+	def __init__(self, environment, simulation, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5):
+		Automaton.__init__(self, environment, simulation)
 		self.color = color
 		self.radius = radius
 		
@@ -21,6 +21,7 @@ class CircleBot(Automaton):
 		bodyCircleDef.friction = friction
 		self.body.CreateShape(bodyCircleDef)
 		self.body.SetMassFromShapes()
+		
 	
 	def draw(self, screen):
 		wCenter = self.body.GetWorldCenter().tuple()

@@ -1,5 +1,9 @@
 class Environment(object):
 	
-	def __init__(self, game):
-		self.game = game
+	def __init__(self, simulation):
+		self.simulation = simulation
 	
+	def addAutomaton(ton):
+		
+	
+	#def automatonsInBox:

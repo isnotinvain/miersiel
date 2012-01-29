@@ -2,10 +2,11 @@ import math
 
 class Automaton(object):
 	
-	def __init__(self, simulation=None, sensors={}):
+	def __init__(self, environment, simulation, sensors={}):
 		self.simulation = simulation
+		self.environment = environment
 		self.sensors = sensors
-	
+
 	def update(self):
 		pass
 		
