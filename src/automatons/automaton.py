@@ -2,10 +2,11 @@ import math
 
 class Automaton(object):
 
-	def __init__(self, env, simulation, sensors={}):
+	def __init__(self, env, simulation, sensors=None):
 		self.simulation = simulation
 		self.env = env
-		self.sensors = sensors
+		if not sensors:
+			self.sensors = {}
 
 	def getCenter():
 		pass

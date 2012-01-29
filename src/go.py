@@ -1,6 +1,7 @@
 # miersiel (c) Alex Levenson 2011, All Rights Reserved
 
 import sys
+import random
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 
@@ -21,14 +22,18 @@ class Game:
 		SCREENHEIGHT = self.screen.get_height()
 
 		size = environment.Environment._toWorld(self.screen.get_size(), PPM, SCREENHEIGHT)
-		aabb = ((-10,-10), tuple(x+10 for x in size))
+		aabb = ((-10,-10), (x+10 for x in size))
 		self.simulator = physics.PhysicsSimulator(aabb)
 		self.env = environment.Environment(self.simulator, self.screen.get_height(), PPM=25.0)
+
+		self.worldSize = tuple(self.env.scToWorld(x) for x in self.screen.get_size())
 
 		self.creation()
 
 	def creation(self):
-		self.env.addTon(CircleBot(self.env,self.simulator, (5,5)))
+		for i in xrange(10):
+			x,y = (x * random.random() for x in self.worldSize)
+			self.env.addTon(CircleBot(self.env,self.simulator, (x,y)))
 
 	def run(self):
 		# the game's main loop
@@ -47,9 +52,9 @@ class Game:
 			# clear the display
 			self.screen.fill(self.bgColor)
 
-			for automaton in self.env.getTons():
-				automaton.draw(self.screen)
-				for sensor in automaton.sensors.itervalues():
+			for ton in self.env.getTons():
+				ton.draw(self.screen)
+				for sensor in ton.sensors.itervalues():
 					sensor.draw(self.screen)
 
 			# blit to the screen
