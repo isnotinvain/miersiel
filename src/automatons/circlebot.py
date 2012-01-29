@@ -117,7 +117,6 @@ class WanderBot(CircleBot):
 
 	def update(self):
 		self.desiredAngle += (random.random() * (util.twoPi / 25.0)) - util.twoPi/50.0
-
 		self.turnTo(self.desiredAngle)
 		self.walkForwards(0.8)
 
@@ -135,6 +134,8 @@ class HerdBot(CircleBot):
 			self.myLeader = None
 			self.timer = 0
 			self.graze = self.getCenter()
+			self.desiredAngle = random.random() * util.twoPi
+			self.wandering = False
 
 		def update(self):
 			self.friends = self.nose.read()
@@ -143,6 +144,8 @@ class HerdBot(CircleBot):
 			CircleBot.update(self)
 
 		def communicate(self):
+			self.wandering = False
+
 			if self.isLeader:
 				friendHerdDists = dict((friend[2].herdDist, friend[2]) for friend in self.friends if friend[2].isLeader)
 				if friendHerdDists:
@@ -151,7 +154,14 @@ class HerdBot(CircleBot):
 						self.isLeader = False
 					if self.herdDist == minHerdDist and random.random() >= 0.5:
 						self.isLeader = False
-				self.goTo(self.hold)
+				
+				if util.distance2(self.getCenter(), self.hold) > 5.0:
+					self.goTo(self.hold)
+				else:
+					self.wandering = True
+					self.desiredAngle += (random.random() * (util.twoPi / 25.0)) - util.twoPi/50.0
+					self.turnTo(self.desiredAngle)
+					self.walkForwards(0.8)
 			else:
 				if not self.myLeader:
 					try:
@@ -162,18 +172,19 @@ class HerdBot(CircleBot):
 					if util.distance2(self.getCenter(), self.myLeader.getCenter()) > 5.0:
 						self.goTo(self.myLeader.getCenter())
 					else:
-						self.timer = (self.timer + 1) % 100
-						if self.timer == 0:
-							rx,ry = self.getCenter()
-							rx += random.random() * 10 - 5
-							ry += random.random() * 10 - 5
-							self.graze = rx,ry
-						else:
-							self.goTo(self.graze)
+						self.wandering = True
+						self.desiredAngle += (random.random() * (util.twoPi / 25.0)) - util.twoPi/50.0
+						self.turnTo(self.desiredAngle)
+						self.walkForwards(0.8)
 
 		def draw(self, screen):
 			self.drawColor = (0,150,0) if self.isLeader else self.color
 			CircleBot.draw(self, screen)
+			if self.wandering:
+				center = self.env.toScreen(self.getCenter())
+				center = tuple(map(int, center))
+				pygame.draw.circle(screen, (175,0,0), center, int(self.env.scToScreen(self.radius)), 5)
+
 #			text = pygame.font_instance.render(str(self.herdDist), 1, (0,0,0))
 #			center = self.getCenter()
 #			screen.blit(text, self.env.toScreen(center))
