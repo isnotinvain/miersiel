@@ -1,5 +1,6 @@
 import math
 import pygame
+import random
 
 import util
 from automaton import Automaton
@@ -58,10 +59,13 @@ class HerdBot(CircleBot):
 
 		def communicate(self):
 			if self.isLeader:
-				friendHerdDists = dict((friend.herdDist, friend) for friend in self.friends)
-				minHerdDist = min(friendHerdDists.iterkeys())
-				if self.herdDist > minHerdDist:
-					self.isLeader = False
+				friendHerdDists = dict((friend.herdDist, friend) for friend in self.friends if friend.isLeader)
+				if friendHerdDists:
+					minHerdDist = min(friendHerdDists.iterkeys())
+					if self.herdDist > minHerdDist:
+						self.isLeader = False
+					if self.herdDist == minHerdDist and random.random() >= 0.5:
+						self.isLeader = False
 
 		def draw(self, screen):
 			self.drawColor = (0,150,0) if self.isLeader else self.color
