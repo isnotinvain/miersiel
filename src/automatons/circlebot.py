@@ -23,7 +23,7 @@ class CircleBot(Automaton):
 		self.body.CreateShape(bodyCircleDef)
 		self.body.SetMassFromShapes()
 
-		self.sensors['nose'] = Nose(self.env, self, 5.0, shouldDraw=True)
+		self.sensors['nose'] = Nose(self.env, self, 100.0, shouldDraw=True)
 
 	def getCenter(self):
 		return self.body.GetWorldCenter().tuple()
@@ -39,3 +39,17 @@ class CircleBot(Automaton):
 		y += wCenter[1]
 		end = self.env.toScreen((x, y))
 		pygame.draw.line(screen, (0, 0, 0), center, end, 1)
+
+	def __repr__(self):
+		return "bot at: " + str(self.getCenter()) + " id: " + str(id(self))
+
+class HerdBot(CircleBot):
+		def __init__(self, env, simulation, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5):
+			CircleBot.__init__(self, env, simulation, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5)
+			self.nose = self.sensors['nose']
+
+		def update(self):
+			friends = self.nose.read()
+
+			for friend in friends:
+				friend.color = (0,0,0)

@@ -8,7 +8,7 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 import physics
 import environment
 
-from automatons.circlebot import CircleBot
+from automatons.circlebot import HerdBot
 
 class Game:
 	def __init__(self, screen):
@@ -21,8 +21,9 @@ class Game:
 		PPM = 25
 		SCREENHEIGHT = self.screen.get_height()
 
-		size = environment.Environment._toWorld(self.screen.get_size(), PPM, SCREENHEIGHT)
-		aabb = ((-10,-10), (x+10 for x in size))
+		size = (environment.Environment._scToWorld(x, PPM,) for x in self.screen.get_size())
+		aabb = ((-10,-10), tuple(x+10 for x in size))
+
 		self.simulator = physics.PhysicsSimulator(aabb)
 		self.env = environment.Environment(self.simulator, self.screen.get_height(), PPM=25.0)
 
@@ -33,7 +34,7 @@ class Game:
 	def creation(self):
 		for i in xrange(10):
 			x,y = (x * random.random() for x in self.worldSize)
-			self.env.addTon(CircleBot(self.env,self.simulator, (x,y)))
+			self.env.addTon(HerdBot(self.env,self.simulator, (x,y)))
 
 	def run(self):
 		# the game's main loop
@@ -48,6 +49,9 @@ class Game:
 
 			# update the physics engine
 			self.simulator.update()
+
+			for ton in self.env.getTons():
+				ton.update()
 
 			# clear the display
 			self.screen.fill(self.bgColor)

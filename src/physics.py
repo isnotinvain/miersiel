@@ -74,10 +74,9 @@ class PhysicsSimulator(object):
 		aabb.lowerBound.Set(left, bottom)
 		aabb.upperBound.Set(right, top)
 		count, shapes = self.world.Query(aabb, numBodies)
-
-		bodies = []
+		bodies = set()
 		for shape in shapes:
-			bodies.append(shape.GetBody())
+			bodies.add(shape.GetBody())
 		return bodies
 
 	def b2PolyToPoints(self, shape):

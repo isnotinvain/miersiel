@@ -8,7 +8,8 @@ class Nose(Sensor):
 		self.range = range
 
 	def read(self):
-		return env.tonsInCircle(self, center, radius)
+		tons = self.env.tonsInCircle(self.parent.getCenter(), self.range)
+		return set(ton for ton in tons if ton is not self.parent)
 
 	def doDraw(self, screen):
 		wCenter = self.parent.getCenter()

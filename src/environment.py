@@ -32,7 +32,8 @@ class Environment(object):
 		bottom = cy - radius
 
 		inBox = self.tonsInBox((left, top), (right, bottom))
-		return set(x for x in inBox if util.distance2(x.getCenter(), center) <= radius)
+		return set(x for x in inBox if util.distance2(x.getCenter(), center) <= radius**2)
+		return inBox
 
 	@classmethod
 	def _scToWorld(cls, scalar, PPM):
