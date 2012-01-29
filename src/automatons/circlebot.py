@@ -22,7 +22,6 @@ class CircleBot(Automaton):
 		self.body.CreateShape(bodyCircleDef)
 		self.body.SetMassFromShapes()
 		
-	
 	def draw(self, screen):
 		wCenter = self.body.GetWorldCenter().tuple()
 		center = map(lambda x : int(x), self.simulation.toScreen(wCenter))

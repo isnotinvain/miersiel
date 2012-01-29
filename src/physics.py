@@ -9,7 +9,7 @@ class PhysicsSimulator(object):
 	Encapsulates the Box2D simulation and
 	provides useful physics related functions
 	"""
-	def __init__(self, game):
+	def __init__(self, game, gravity=(0,0)):
 		self.game = game
 		self.SCREENHEIGHT = game.screen.get_height()
 		self.PPM = 25.0
@@ -22,7 +22,6 @@ class PhysicsSimulator(object):
 		x = (x / self.PPM) + 10
 		y = (y / self.PPM) + 10
 		worldAABB.upperBound.Set(x, y)
-		gravity = (0, 0)
 		self.world = box2d.b2World(worldAABB, gravity, True)
 
 		self.timeStep = 1.0 / 60

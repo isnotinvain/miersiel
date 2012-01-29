@@ -5,6 +5,7 @@ import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 
 import physics
+import environment
 
 from automatons.circlebot import CircleBot
 
@@ -16,13 +17,12 @@ class Game:
 		self.bgColor = (255, 255, 255)
 		self.running = False
 		self.simulator = physics.PhysicsSimulator(self)
-		
-		self.automatons = []
+		self.environment = environment.Environment(self.simulator)
 		
 		self.creation()
 
 	def creation(self):
-		self.automatons = [CircleBot(self.simulator,(5,5))]
+		self.environment.addAutomaton(CircleBot(self.environment,self.simulator, (5,5)))
 
 	def run(self):
 		# the game's main loop
@@ -41,7 +41,7 @@ class Game:
 			# clear the display
 			self.screen.fill(self.bgColor)
 
-			for automaton in self.automatons:
+			for automaton in self.environment.getAutomatons():
 				automaton.draw(self.screen)
 
 			# blit to the screen
