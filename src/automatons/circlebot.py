@@ -23,7 +23,7 @@ class CircleBot(Automaton):
 		self.body.CreateShape(bodyCircleDef)
 		self.body.SetMassFromShapes()
 
-		self.sensors['nose'] = Nose(self.env, self, 3.0)
+		self.sensors['nose'] = Nose(self.env, self, 5.0, shouldDraw=True)
 
 	def getCenter(self):
 		return self.body.GetWorldCenter().tuple()
