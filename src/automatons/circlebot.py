@@ -95,6 +95,7 @@ class HerdBot(CircleBot):
 			self.isLeader = True
 			self.friends = None
 			self.hold = self.getCenter()
+			self.myLeader = None
 
 		def update(self):
 			self.friends = self.nose.read()
@@ -113,12 +114,14 @@ class HerdBot(CircleBot):
 						self.isLeader = False
 				self.goTo(self.hold)
 			else:
-				try:
-					leader = (friend for friend in self.friends if friend.isLeader).next()
-					if util.distance2(self.getCenter(), leader.getCenter()) > 1.0:
-						self.goTo(leader.getCenter())
-				except StopIteration:
-					pass
+				if not self.myLeader:
+					try:
+						self.myLeader = (friend for friend in self.friends if friend.isLeader).next()
+					except StopIteration:
+						pass
+				if self.myLeader:
+					if util.distance2(self.getCenter(), self.myLeader.getCenter()) > 1.0:
+						self.goTo(self.myLeader.getCenter())
 
 		def draw(self, screen):
 			self.drawColor = (0,150,0) if self.isLeader else self.color
