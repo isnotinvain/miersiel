@@ -30,7 +30,7 @@ class CircleBot(Automaton):
 		self.torque = 0
 		self.maxTorque = 10
 
-		self.sensors['nose'] = Nose(self.env, self, 5.0, shouldDraw=True)
+		self.sensors['nose'] = Nose(self.env, self, 5.0)
 
 	def getCenter(self):
 		return self.body.GetWorldCenter().tuple()
@@ -52,7 +52,7 @@ class CircleBot(Automaton):
 		self._applyTorques()
 
 	def kill(self):
-		self.simulator.world.DestroyBody(self.body)
+		self.simulation.world.DestroyBody(self.body)
 
 	def applyForce(self, f):
 		self.force = util.vecAdd(self.force, f)
@@ -76,6 +76,29 @@ class CircleBot(Automaton):
 		self.body.ApplyTorque(self.torque)
 		self.torque = 0
 
+	def turn(self, amount):
+		velocityNeeded = amount / self.simulation.timeStep
+		currentVelocity = self.body.GetAngularVelocity()
+		accelerationNeeded = (velocityNeeded - currentVelocity) / self.simulation.timeStep
+		momentInertia = 0.5 * self.body.GetMass() * self.radius ** 2
+		torqueNeeded = momentInertia * accelerationNeeded
+		self.applyTorque(torqueNeeded)
+
+	def turnTo(self, desired, kp=1.0, kd=0.2):
+		desired = util.normalizePositiveAngle(desired)
+		current = util.normalizePositiveAngle(self.body.GetAngle())
+		angleDelta = util.shortestTurn(current, desired)
+		angleDelta = kp * angleDelta - kd * self.body.GetAngularVelocity()
+		self.turn(angleDelta)
+
+	def face(self, pt, kp=1.0, kd=0.2):
+		desired = -1 * (util.getAngle(self.getCenter(), pt) + (util.halfPi))
+		self.turnTo(desired, kp, kd)
+
+	def walkForwards(self, distance):
+		cAngle = util.normalizeAngle(self.body.GetAngle())
+		self.goTo(util.movePt(self.getCenter(), cAngle, distance))
+
 	def goTo(self,target,kp=1.0,kd=1.0):
 		pos = self.getCenter()
 		distX,distY = target[0] - pos[0], target[1] - pos[1]
@@ -86,6 +109,20 @@ class CircleBot(Automaton):
 
 	def __repr__(self):
 		return "bot at: " + str(self.getCenter()) + " id: " + str(id(self))
+
+class WanderBot(CircleBot):
+	def __init__(self, env, simulation, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5):
+		CircleBot.__init__(self, env, simulation, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5)
+		self.desiredAngle = random.random() * util.twoPi
+
+	def update(self):
+		self.desiredAngle += (random.random() * (util.twoPi / 25.0)) - util.twoPi/50.0
+
+		self.turnTo(self.desiredAngle)
+		self.walkForwards(0.8)
+
+		CircleBot.update(self)
+
 
 class HerdBot(CircleBot):
 		def __init__(self, env, simulation, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5):
@@ -101,13 +138,13 @@ class HerdBot(CircleBot):
 
 		def update(self):
 			self.friends = self.nose.read()
-			self.herdDist = sum(util.distance2(self.getCenter(), friend.getCenter()) for friend in self.friends)
+			self.herdDist = sum(ray[0] for ray in self.friends)
 
 			CircleBot.update(self)
 
 		def communicate(self):
 			if self.isLeader:
-				friendHerdDists = dict((friend.herdDist, friend) for friend in self.friends if friend.isLeader)
+				friendHerdDists = dict((friend[2].herdDist, friend[2]) for friend in self.friends if friend[2].isLeader)
 				if friendHerdDists:
 					minHerdDist = min(friendHerdDists.iterkeys())
 					if self.herdDist > minHerdDist:
@@ -118,7 +155,7 @@ class HerdBot(CircleBot):
 			else:
 				if not self.myLeader:
 					try:
-						self.myLeader = (friend for friend in self.friends if friend.isLeader).next()
+						self.myLeader = (friend[2] for friend in self.friends if friend[2].isLeader).next()
 					except StopIteration:
 						pass
 				if self.myLeader:

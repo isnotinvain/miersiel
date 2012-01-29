@@ -76,15 +76,17 @@ def getAngle(pt1, pt2):
     ycomp = pt1[1] - pt2[1]
     return math.atan2(ycomp, xcomp)
 
-def movePt(pt, vec):
-    '''
-    moves a point by a vector
-    '''
-    x, y = pt
-    mx, my = vec
-    x += mx
-    y += my
-    return x, y
+def movePt(pt, angle, distance):
+	'''
+	move a point by a ray
+	return: a new point that has been moved
+	'''
+	x,y = pt
+	cAngle = normalizeAngle(angle)
+	delta = -math.sin(cAngle), math.cos(cAngle)
+	dx, dy = scaleVec(delta, distance)
+	return (x + dx, y + dy)
+
 
 def midPt(pt1, pt2):
     '''

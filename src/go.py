@@ -8,7 +8,7 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 import physics
 import environment
 
-from automatons.circlebot import HerdBot
+from automatons.circlebot import WanderBot
 
 class Game:
 	def __init__(self, screen):
@@ -34,7 +34,7 @@ class Game:
 	def creation(self):
 		for i in xrange(100):
 			x,y = ((x * random.random() * 0.8) + x * 0.1 for x in self.worldSize)
-			self.env.addTon(HerdBot(self.env,self.simulator, (x,y)))
+			self.env.addTon(WanderBot(self.env,self.simulator, (x,y)))
 
 	def run(self):
 		# the game's main loop
