@@ -88,7 +88,7 @@ def movePt(pt, vec):
 
 def midPt(pt1, pt2):
     '''
-    return: the midpoint of the line segment from pt1 --> pt2 
+    return: the midpoint of the line segment from pt1 --> pt2
     '''
     return ((pt1[0] + pt2[0]) / 2.0, (pt1[1] + pt2[1]) / 2.0)
 

@@ -16,13 +16,19 @@ class Game:
 		self.clock = pygame.time.Clock()
 		self.bgColor = (255, 255, 255)
 		self.running = False
-		self.simulator = physics.PhysicsSimulator(self)
-		self.environment = environment.Environment(self.simulator)
-		
+
+		PPM = 25
+		SCREENHEIGHT = self.screen.get_height()
+
+		size = environment.Environment._toWorld(self.screen.get_size(), PPM, SCREENHEIGHT)
+		aabb = ((-10,-10), tuple(x+10 for x in size))
+		self.simulator = physics.PhysicsSimulator(aabb)
+		self.env = environment.Environment(self.simulator, self.screen.get_height(), PPM=25.0)
+
 		self.creation()
 
 	def creation(self):
-		self.environment.addAutomaton(CircleBot(self.environment,self.simulator, (5,5)))
+		self.env.addTon(CircleBot(self.env,self.simulator, (5,5)))
 
 	def run(self):
 		# the game's main loop
@@ -34,15 +40,17 @@ class Game:
 					# bye bye! Hope you had fun!
 					self.running = False
 					break
-					
+
 			# update the physics engine
 			self.simulator.update()
 
 			# clear the display
 			self.screen.fill(self.bgColor)
 
-			for automaton in self.environment.getAutomatons():
+			for automaton in self.env.getTons():
 				automaton.draw(self.screen)
+				for sensor in automaton.sensors.itervalues():
+					sensor.draw(self.screen)
 
 			# blit to the screen
 			pygame.display.flip()

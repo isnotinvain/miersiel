@@ -9,19 +9,15 @@ class PhysicsSimulator(object):
 	Encapsulates the Box2D simulation and
 	provides useful physics related functions
 	"""
-	def __init__(self, game, gravity=(0,0)):
-		self.game = game
-		self.SCREENHEIGHT = game.screen.get_height()
-		self.PPM = 25.0
+	def __init__(self, aabb, gravity=(0,0)):
 		self.ITERATIONS = 20
 
-		# set up box2D	
+		# set up box2D
 		worldAABB = box2d.b2AABB()
-		worldAABB.lowerBound.Set(-10, -10)
-		x, y = game.screen.get_size()
-		x = (x / self.PPM) + 10
-		y = (y / self.PPM) + 10
-		worldAABB.upperBound.Set(x, y)
+		lower, upper = aabb
+		worldAABB.lowerBound.Set(*lower)
+		worldAABB.upperBound.Set(*upper)
+
 		self.world = box2d.b2World(worldAABB, gravity, True)
 
 		self.timeStep = 1.0 / 60
@@ -84,33 +80,10 @@ class PhysicsSimulator(object):
 			bodies.append(shape.GetBody())
 		return bodies
 
-	def scToWorld(self, scalar):
-		return scalar / self.PPM
-
-	def toWorld(self, vec):
-		x, y = vec
-		x /= self.PPM
-		y = self.SCREENHEIGHT - y
-		y /= self.PPM
-		return x, y
-
-	def scToScreen(self, scalar):
-		return scalar * self.PPM
-
-	def toScreen(self, vec):
-		if not isinstance(vec, tuple):
-			vec = vec.tuple()
-		x, y = vec
-		x *= self.PPM
-		y *= self.PPM
-		y = self.SCREENHEIGHT - y
-		return x, y
-
-	def b2PolyToScreen(self, shape):
+	def b2PolyToPoints(self, shape):
 		points = []
 		for i in xrange(shape.GetVertexCount()):
 			pt = box2d.b2Mul(shape.GetBody().GetXForm(), shape.getVertex(i))
-			pt = self.toScreen(pt)
 			points.append(pt)
 		return points
 
