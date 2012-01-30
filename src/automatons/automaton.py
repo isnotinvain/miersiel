@@ -4,7 +4,7 @@ class Automaton(object):
 	ONE_STATE = Enum.new("default")
 	DEFAULT_STATE = ONE_STATE.default
 
-	def __init__(self, env, simulation, sensors=None, states=ONE_STATE, defaultState=DEFAULT_STATE, onStateTransition=None):
+	def __init__(self, env, simulation, sensors=None, states=ONE_STATE, defaultState=DEFAULT_STATE, onStateTransition=None, behaviors=None):
 		self.simulation = simulation
 		self.env = env
 		self.sensors = sensors
@@ -16,6 +16,9 @@ class Automaton(object):
 		self.defaultState = defaultState
 		self.currentState = defaultState
 		self.onStateTransition = onStateTransition
+		self.behaviors = behaviors
+		if self.behaviors = None:
+			self.behaviors = {}
 
 	def getCenter():
 		pass
@@ -38,3 +41,13 @@ class Automaton(object):
 		if self.onStateTransition:
 			self.onStateTransition(self.currentState, state)
 		self.currentState = state
+
+class Behavior(object):
+	def __init__(self, conditions):
+		self.conditions = conditions
+
+	def update(self, ton, env, simulation):
+		for condition, state in self.conditions:
+			if condition(ton, env, simulation):
+				ton.changeState(state)
+				return
