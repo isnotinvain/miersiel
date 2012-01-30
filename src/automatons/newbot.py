@@ -31,7 +31,7 @@ class NewBot(Automaton):
 
 		self.hold = self.getCenter()
 
-		self.sensors['nose'] = Nose(self.env, self, 100.0, shouldDraw=True)
+		self.sensors['nose'] = Nose(self.env, self, 4.0, shouldDraw=False)
 		self.behavior = self.__genBehavior()
 
 	def draw(self, screen):
@@ -155,39 +155,65 @@ class Wander(Behavior):
 		ton.walkForwards(1.0)
 
 class HerdElectLeader(Behavior):
-	isLeaderCond = lambda cls, ton, env, sim: ton.isLeader
-	isFollowerCond = lambda cls, ton, env, sim: ton.isLeader == False
 	def __init__(self, ton, leaderBehavior, followerBehavior):
-		self.color = (0,255,0)
-		conditions = [(self.isLeaderCond, leaderBehavior), (self.isFollowerCond, followerBehavior)]
+		conditions = [(lambda ton, env, sim: self.isLeader, leaderBehavior), \
+									(lambda ton, env, sim: self.isLeader == False and self.leader, followerBehavior)]
+
 		Behavior.__init__(self, conditions)
-		ton.isLeader = None
+		self.isLeader = None
+		self.leader = None
+		self.isLeaderCandidate = None
+		self.tieBreaker = None
 		ton.leader = None
-		self.herdDist = None
-		self.friends = None
+		ton.isLeader = None
 
 	def read(self, ton, env, sim):
 		if not ton.sensors['nose']: return
-		self.friends = ton.sensors['nose'].read()
-		self.herdDist = sum(ray[0] for ray in self.friends)
+		self.bors = ton.sensors['nose'].read()
+		self.herdDist = sum(ray[0] for ray in self.bors)
+		env.writeComm(HerdElectLeader, ton, self.herdDist)
 
 	def communicate(self, ton, env, sim):
-		friendHerdDists = dict((friend[2].behavior.herdDist, friend[2]) for friend in self.friends if friend[2].isLeader == None)
-		if friendHerdDists:
-			minHerdDist = min(friendHerdDists.iterkeys())
-			if self.herdDist > minHerdDist:
-				ton.isLeader = False
-			elif self.herdDist == minHerdDist and random.random() >= 0.5:
-				ton.isLeader = False
+		if self.isLeaderCandidate:
+ 			otherCandidates = dict( \
+				(env.readComm("Leadership", bor[2])['tie-breaker'], bor[2]) \
+				for bor in self.bors if env.readComm("Leadership", bor[2])['isLeader'])
+			if otherCandidates:
+				maxRand = max(otherCandidates.iterkeys())
+				if self.tieBreaker > maxRand:
+					self.isLeader = True
+					ton.isLeader = True
+					ton.leader = None
+				elif self.tieBreaker == maxRand:
+					self.tieBreaker = random.random()
+					env.writeComm("Leadership", ton, {'isLeader': True, 'tie-breaker': self.tieBreaker})
+				else:
+					self.isLeaderCandidate = False
+					self.isLeader = False
+					ton.isLeader = False
+				env.writeComm("Leadership", ton, {'isLeader': False})
 			else:
+				self.isLeader = True
 				ton.isLeader = True
-			if ton.isLeader == False:
-				try:
-					ton.leader = (friend[2] for friend in self.friends if friend[2].isLeader).next()
-				except StopIteration:
-					pass
+				ton.leader = None
+
+		if self.isLeader == False:
+ 			potentialLeaders = tuple(bor[2] for bor in self.bors if env.readComm("Leadership", bor[2])['isLeader'])
+			if len(potentialLeaders) == 1:
+				self.leader = potentialLeaders[0]
+				ton.leader = self.leader
 		else:
-			ton.isLeader = True
+			herdDists = dict((env.readComm(HerdElectLeader, bor[2]), bor[2]) for bor in self.bors)
+			if herdDists:
+				minHerdDist = min(herdDists.iterkeys())
+				if self.herdDist > minHerdDist:
+					self.isLeader = False
+					ton.isLeader = False
+					env.writeComm("Leadership", ton, {'isLeader': False})
+				else:
+					self.tieBreaker = random.random()
+					env.writeComm("Leadership", ton, {'isLeader': True, 'tie-breaker': self.tieBreaker})
+					self.isLeaderCandidate = True
 
 class GetCloseToPt(Behavior):
 	def __init__(self, to, getThereBehavior, closeEnough):

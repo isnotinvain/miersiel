@@ -5,9 +5,23 @@ class Environment(object):
 	def __init__(self, simulation, SCREENHEIGHT, PPM=25.0):
 		self.simulation = simulation
 		self.tons = set()
+		self.comms = {}
 
 		self.SCREENHEIGHT = SCREENHEIGHT
 		self.PPM = 25.0
+
+	def writeComm(self, channelKey, ton, value):
+		if channelKey not in self.comms:
+			self.comms[channelKey] = {}
+		channel = self.comms[channelKey]
+		channel[ton] = value
+
+	def readComm(self, channelKey, ton):
+		if channelKey not in self.comms:
+			return None
+		if ton not in self.comms[channelKey]:
+			return None
+		return self.comms[channelKey][ton]
 
 	def addTon(self, ton):
 		self.tons.add(ton)
