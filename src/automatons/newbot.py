@@ -1,0 +1,198 @@
+import math
+import pygame
+import random
+
+import util
+from automaton import Automaton, Behavior
+import Box2D as box2d
+from sensors import Nose
+
+class NewBot(Automaton):
+	def __init__(self, env, sim, pos, color=(100, 100, 100), radius=0.5, density=1.0, restitution=0.6, friction=0.5):
+		Automaton.__init__(self, env, sim)
+		self.color = color
+		self.drawColor = color
+		self.radius = radius
+
+		self.body = self.sim.addBody(pos, self)
+		bodyCircleDef = box2d.b2CircleDef()
+		bodyCircleDef.radius = self.radius
+		bodyCircleDef.localPosition.Set(0.0, 0.0)
+		bodyCircleDef.density = density
+		bodyCircleDef.restitution = restitution
+		bodyCircleDef.friction = friction
+		self.body.CreateShape(bodyCircleDef)
+		self.body.SetMassFromShapes()
+
+		self.force = (0,0)
+		self.maxForce = 10
+		self.torque = 0
+		self.maxTorque = 10
+
+		self.sensors['nose'] = Nose(self.env, self, 2.0, shouldDraw=True)
+		self.behavior = self.__genBehavior()
+
+	def draw(self, screen):
+		wCenter = self.getCenter()
+		center = map(lambda x : int(x), self.env.toScreen(wCenter))
+		self.drawColor = self.behavior.color
+		pygame.draw.circle(screen, self.drawColor, center, int(self.env.scToScreen(self.radius)))
+		hold = map(lambda x: int(x), self.env.toScreen(self.hold))
+		pygame.draw.circle(screen, (0,0,255), hold, 3)
+		linecolor = (0,0,0)
+		pygame.draw.line(screen, linecolor, center, hold, 1)
+		cAngle = self.body.GetAngle()
+		vec = -1 * math.sin(cAngle), math.cos(cAngle)
+		x, y = util.scaleVec(vec, self.radius)
+		x += wCenter[0]
+		y += wCenter[1]
+		end = self.env.toScreen((x, y))
+		pygame.draw.line(screen, (0, 0, 0), center, end, 1)
+
+	def getCenter(self):
+		return self.body.GetWorldCenter().tuple()
+
+	def kill(self):
+		self.sim.world.DestroyBody(self.body)
+
+	def applyForce(self, f):
+		self.force = util.vecAdd(self.force, f)
+
+	def setForce(self, f):
+		self.force = f
+
+	def _applyForces(self):
+		self.body.ApplyForce(util.ceilVec(self.force, self.maxForce), self.body.GetWorldCenter())
+		self.force = (0, 0)
+
+	def applyTorque(self, t):
+		self.torque += t
+
+	def setTorque(self, t):
+		self.torque = t
+
+	def _applyTorques(self):
+		if abs(self.torque) > self.maxTorque:
+			self.torque = (abs(self.torque) / self.torque) * self.maxTorque
+		self.body.ApplyTorque(self.torque)
+		self.torque = 0
+
+	def turn(self, amount):
+		velocityNeeded = amount / self.sim.timeStep
+		currentVelocity = self.body.GetAngularVelocity()
+		accelerationNeeded = (velocityNeeded - currentVelocity) / self.sim.timeStep
+		momentInertia = 0.5 * self.body.GetMass() * self.radius ** 2
+		torqueNeeded = momentInertia * accelerationNeeded
+		self.applyTorque(torqueNeeded)
+
+	def turnTo(self, desired, kp=1.0, kd=0.2):
+		desired = util.normalizePositiveAngle(desired)
+		current = util.normalizePositiveAngle(self.body.GetAngle())
+		angleDelta = util.shortestTurn(current, desired)
+		angleDelta = kp * angleDelta - kd * self.body.GetAngularVelocity()
+		self.turn(angleDelta)
+
+	def face(self, pt, kp=1.0, kd=0.2):
+		desired = -1 * (util.getAngle(self.getCenter(), pt) + (util.halfPi))
+		self.turnTo(desired, kp, kd)
+		return desired
+
+	def walkForwards(self, distance):
+		cAngle = util.normalizeAngle(self.body.GetAngle())
+		self.goTo(util.movePt(self.getCenter(), cAngle, distance))
+
+	def goTo(self,target,kp=1.0,kd=1.0):
+		pos = self.getCenter()
+		distX,distY = target[0] - pos[0], target[1] - pos[1]
+		vX,vY = self.body.GetLinearVelocity().tuple()
+		Fx = kp*distX - kd*vX
+		Fy = kp*distY - kd*vY
+		self.setForce((Fx,Fy))
+
+	def act(self):
+		Automaton.act(self)
+		self._applyForces()
+		self._applyTorques()
+
+	def __repr__(self):
+		return "bot at: " + str(self.getCenter()) + " id: " + str(id(self))
+
+	def __genBehavior(self):
+		self.hold = self.getCenter()
+		def ifTooFarFromHold(ton, env, sim):
+			return util.distance2(self.getCenter(), self.hold) > 5**2
+
+		hangAroundHold = Wander()
+		goBackToHold = GetCloseToPt(self.hold, hangAroundHold, 2.0)
+		hangAroundHold.conditions = [(ifTooFarFromHold, goBackToHold)]
+		return hangAroundHold
+#		leaderBehavior = Wander()
+		#return HerdElectLeader(self, )
+
+class Wander(Behavior):
+	def __init__(self, conditions=None):
+		self.color = (100,100,100)
+		Behavior.__init__(self, conditions)
+		self.desiredAngle = random.random() * util.twoPi
+
+	def act(self, ton, env, sim):
+		self.desiredAngle += (random.random() * (util.twoPi/ 10.0)) - util.twoPi/ 20.0
+		ton.turnTo(self.desiredAngle)
+		ton.walkForwards(1.0)
+
+class HerdElectLeader(Behavior):
+	isLeaderCond = lambda ton, env, sim: ton.isLeader
+	isFolowerCond = lambda ton, env, sim: ton.isLeader == False
+	def __init__(self, ton, leaderBehavior, followerBehavior):
+		self.color = (0,255,0)
+		conditions = [(isLeaderCond, leaderBehavior), (isFollowerCond, followerBehavior)]
+		Behavior.__init__(self, conditions)
+		ton.isLeader = None
+		self.herdDist = None
+		self.friends = None
+
+	def read(self, ton, env, sim):
+		if not ton.sensors['nose']: return
+		self.friends = ton.sensors['nose'].read()
+		self.herdDist = sum(ray[0] for ray in self.friends)
+
+	def communicate(self, ton, env, sim):
+		friendHerdDists = dict((friend[2].herdDist, friend[2]) for friend in friends if friend[2].isLeader == None)
+		if friendHerdDists:
+			minHerdDist = min(friendHerdDists.iterkeys())
+			if self.herdDist > minHerdDist:
+				ton.isLeader = False
+			if self.herdDist == minHerdDist and random.random() >= 0.5:
+				ton.isLeader = False
+			if self.herdDist < minHerdDist:
+				ton.isLeader = True
+
+class GetCloseToPt(Behavior):
+	def __init__(self, to, getThereBehavior, closeEnough):
+		self.color = (255,0,0)
+		self.to = to
+		self.closeEnough = closeEnough
+		conditions = [(self.isCloseEnough, getThereBehavior)]
+		Behavior.__init__(self, conditions)
+
+	def isCloseEnough(self, ton, env, sim):
+		return util.distance2(self.to, ton.getCenter()) <= self.closeEnough**2
+
+	def act(self, ton, env, sim):
+		ton.face(self.to)
+		ton.walkForwards(1.0)
+
+class GetCloseTo(Behavior):
+	def __init__(self, to, getThereBehavior, closeEnough):
+		self.color = (255,0,0)
+		self.to = to
+		self.closeEnough = closeEnough
+		conditions = [(self.isCloseEnough, getThereBehavior)]
+		Behavior.__init__(self, conditions)
+
+	def isCloseEnough(self, ton, env, sim):
+		return util.distance2(self.to.getCenter(), ton.getCenter()) <= slef.closeEnough**2
+
+	def act(self, ton, env, sim):
+		ton.face(self.to.getCenter())
+		ton.walkForwards(1.0)

@@ -8,7 +8,7 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 import physics
 import environment
 
-from automatons.circlebot import HerdBot as Bot
+from automatons.newbot import NewBot as Bot
 
 class Game:
 	def __init__(self, screen):
@@ -47,14 +47,18 @@ class Game:
 					self.running = False
 					break
 
-			# update the physics engine
-			self.simulator.update()
-
 			for ton in self.env.getTons():
-				ton.update()
+				ton.checkConditions()
+				ton.read()
 
 			for ton in self.env.getTons():
 				ton.communicate()
+
+			for ton in self.env.getTons():
+				ton.act()
+
+			# update the physics engine
+			self.simulator.update()
 
 			# clear the display
 			self.screen.fill(self.bgColor)
