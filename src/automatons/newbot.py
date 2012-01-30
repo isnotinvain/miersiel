@@ -29,18 +29,25 @@ class NewBot(Automaton):
 		self.torque = 0
 		self.maxTorque = 10
 
-		self.sensors['nose'] = Nose(self.env, self, 2.0, shouldDraw=True)
+		self.hold = self.getCenter()
+
+		self.sensors['nose'] = Nose(self.env, self, 100.0, shouldDraw=True)
 		self.behavior = self.__genBehavior()
 
 	def draw(self, screen):
 		wCenter = self.getCenter()
 		center = map(lambda x : int(x), self.env.toScreen(wCenter))
-		self.drawColor = self.behavior.color
+		self.drawColor = (0,255,0) if self.isLeader else self.color
 		pygame.draw.circle(screen, self.drawColor, center, int(self.env.scToScreen(self.radius)))
-		hold = map(lambda x: int(x), self.env.toScreen(self.hold))
-		pygame.draw.circle(screen, (0,0,255), hold, 3)
-		linecolor = (0,0,0)
-		pygame.draw.line(screen, linecolor, center, hold, 1)
+		if self.leader:
+			leader = map(lambda x : int(x), self.env.toScreen(self.leader.getCenter()))
+			pygame.draw.line(screen, (0,255,0), center, leader, 1)
+		else:
+			hold = map(lambda x: int(x), self.env.toScreen(self.hold))
+			pygame.draw.circle(screen, (0,0,255), hold, 3)
+			linecolor = (0,0,0)
+			pygame.draw.line(screen, linecolor, center, hold, 1)
+
 		cAngle = self.body.GetAngle()
 		vec = -1 * math.sin(cAngle), math.cos(cAngle)
 		x, y = util.scaleVec(vec, self.radius)
@@ -118,14 +125,21 @@ class NewBot(Automaton):
 		return "bot at: " + str(self.getCenter()) + " id: " + str(id(self))
 
 	def __genBehavior(self):
-		self.hold = self.getCenter()
-		def ifTooFarFromHold(ton, env, sim):
-			return util.distance2(self.getCenter(), self.hold) > 5**2
+		ifTooFarFromHold = lambda ton, env, sim: util.distance2(ton.getCenter(), ton.hold) > 5**2
 
 		hangAroundHold = Wander()
 		goBackToHold = GetCloseToPt(self.hold, hangAroundHold, 2.0)
 		hangAroundHold.conditions = [(ifTooFarFromHold, goBackToHold)]
-		return hangAroundHold
+		leaderBehavior = hangAroundHold
+
+		ifTooFarFromLeader = lambda ton, env, sim: ton.leader!=None and util.distance2(ton.getCenter(), ton.leader.getCenter()) > 5**2
+		hangAroundLeader = Wander()
+		goBackToLeader = GetCloseToLeader(hangAroundLeader, 3.0)
+		hangAroundLeader.conditions = [(ifTooFarFromLeader, goBackToLeader)]
+
+		followerBehavior = hangAroundLeader
+
+		return HerdElectLeader(self, leaderBehavior, followerBehavior)
 #		leaderBehavior = Wander()
 		#return HerdElectLeader(self, )
 
@@ -141,13 +155,14 @@ class Wander(Behavior):
 		ton.walkForwards(1.0)
 
 class HerdElectLeader(Behavior):
-	isLeaderCond = lambda ton, env, sim: ton.isLeader
-	isFolowerCond = lambda ton, env, sim: ton.isLeader == False
+	isLeaderCond = lambda cls, ton, env, sim: ton.isLeader
+	isFollowerCond = lambda cls, ton, env, sim: ton.isLeader == False
 	def __init__(self, ton, leaderBehavior, followerBehavior):
 		self.color = (0,255,0)
-		conditions = [(isLeaderCond, leaderBehavior), (isFollowerCond, followerBehavior)]
+		conditions = [(self.isLeaderCond, leaderBehavior), (self.isFollowerCond, followerBehavior)]
 		Behavior.__init__(self, conditions)
 		ton.isLeader = None
+		ton.leader = None
 		self.herdDist = None
 		self.friends = None
 
@@ -157,15 +172,22 @@ class HerdElectLeader(Behavior):
 		self.herdDist = sum(ray[0] for ray in self.friends)
 
 	def communicate(self, ton, env, sim):
-		friendHerdDists = dict((friend[2].herdDist, friend[2]) for friend in friends if friend[2].isLeader == None)
+		friendHerdDists = dict((friend[2].behavior.herdDist, friend[2]) for friend in self.friends if friend[2].isLeader == None)
 		if friendHerdDists:
 			minHerdDist = min(friendHerdDists.iterkeys())
 			if self.herdDist > minHerdDist:
 				ton.isLeader = False
-			if self.herdDist == minHerdDist and random.random() >= 0.5:
+			elif self.herdDist == minHerdDist and random.random() >= 0.5:
 				ton.isLeader = False
-			if self.herdDist < minHerdDist:
+			else:
 				ton.isLeader = True
+			if ton.isLeader == False:
+				try:
+					ton.leader = (friend[2] for friend in self.friends if friend[2].isLeader).next()
+				except StopIteration:
+					pass
+		else:
+			ton.isLeader = True
 
 class GetCloseToPt(Behavior):
 	def __init__(self, to, getThereBehavior, closeEnough):
@@ -182,17 +204,16 @@ class GetCloseToPt(Behavior):
 		ton.face(self.to)
 		ton.walkForwards(1.0)
 
-class GetCloseTo(Behavior):
-	def __init__(self, to, getThereBehavior, closeEnough):
+class GetCloseToLeader(Behavior):
+	def __init__(self, getThereBehavior, closeEnough):
 		self.color = (255,0,0)
-		self.to = to
 		self.closeEnough = closeEnough
 		conditions = [(self.isCloseEnough, getThereBehavior)]
 		Behavior.__init__(self, conditions)
 
 	def isCloseEnough(self, ton, env, sim):
-		return util.distance2(self.to.getCenter(), ton.getCenter()) <= slef.closeEnough**2
+		return util.distance2(ton.getCenter(), ton.leader.getCenter()) <= self.closeEnough**2
 
 	def act(self, ton, env, sim):
-		ton.face(self.to.getCenter())
+		ton.face(ton.leader.getCenter())
 		ton.walkForwards(1.0)
