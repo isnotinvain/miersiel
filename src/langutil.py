@@ -1,3 +1,4 @@
+#http://stackoverflow.com/users/7980/alec-thomas
 class Enum(object):
 	@classmethod
 	def new(cls, *seq, **named):
