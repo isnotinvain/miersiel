@@ -25,5 +25,5 @@ class Nose(Sensor):
 
   def doDraw(self, screen):
     wCenter = self.parent.getCenter()
-    sCenter = hurrr.twod.ints(env.camera.toScreen(wCenter))
-    pygame.draw.circle(screen, (255,0,0), sCenter, int(self.env.camera.scalarToScreen(self.range)),1)
+    sCenter = hurrr.twod.ints(self.env.camera.toScreen(wCenter))
+    pygame.draw.circle(screen, (204,102,102), sCenter, int(self.env.camera.scalarToScreen(self.range)),1)
