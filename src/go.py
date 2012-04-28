@@ -1,93 +1,47 @@
-# miersiel (c) Alex Levenson 2011, All Rights Reserved
-
-import sys
 import random
-import pygame
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 
-import physics
-import environment
+import hurrr.gui
+import hurrr.physics
 
-from automatons.newbot import NewBot as Bot
+from environment import Environment
+from automatons import NewBot as Bot
 
-class Game:
-	def __init__(self, screen):
-		# get everything set up
-		self.screen = screen
-		self.clock = pygame.time.Clock()
-		self.bgColor = (255, 255, 255)
-		self.running = False
+class Go(object):
+  def __init__(self):
+    self.window = hurrr.gui.Window( \
+                                   updateFunc=lambda: self.update(), \
+                                   drawFunc=lambda screen:self.draw(screen), \
+                                   screenToWorldRatio=25.0,
+                                   bgColor=(0,0,0))
+    self.window.run(setupWindow=lambda w: self.setupWindow(w))
 
-		PPM = 25
-		SCREENHEIGHT = self.screen.get_height()
+  def setupWindow(self, window):
+    wx, wy = window.size
+    worldDims = window.camera.scalarToWorld(wx), window.camera.scalarToWorld(wy)
+    self.world = hurrr.physics.Simulator(dimensions=((0,0),worldDims))
+    self.env = Environment(self.world, window.camera)
 
-		size = (environment.Environment._scToWorld(x, PPM,) for x in self.screen.get_size())
-		aabb = ((-10,-10), tuple(x+10 for x in size))
+    for i in xrange(100):
+      x,y = ((x * random.random() * 0.8) + x * 0.1 for x in self.world.dimensions[1])
+      self.env.addTon(Bot(self.env,self.world, (x,y)))
 
-		self.simulator = physics.PhysicsSimulator(aabb)
-		self.env = environment.Environment(self.simulator, self.screen.get_height(), PPM=25.0)
+  def update(self):
+    for ton in self.env.getTons():
+      ton.checkConditions()
+      ton.read()
 
-		self.worldSize = tuple(self.env.scToWorld(x) for x in self.screen.get_size())
+    for ton in self.env.getTons():
+      ton.communicate()
 
-		self.creation()
+    for ton in self.env.getTons():
+      ton.act()
 
-	def creation(self):
-		for i in xrange(100):
-			x,y = ((x * random.random() * 0.8) + x * 0.1 for x in self.worldSize)
-			self.env.addTon(Bot(self.env,self.simulator, (x,y)))
+    self.world.step()
+    return True
 
-	def run(self):
-		# the game's main loop
-		self.running = True
-		while self.running:
-			# handle events
-			for event in pygame.event.get():
-				if event.type == QUIT:
-					# bye bye! Hope you had fun!
-					self.running = False
-					break
-
-			for ton in self.env.getTons():
-				ton.checkConditions()
-				ton.read()
-
-			for ton in self.env.getTons():
-				ton.communicate()
-
-			for ton in self.env.getTons():
-				ton.act()
-
-			# update the physics engine
-			self.simulator.update()
-
-			# clear the display
-			self.screen.fill(self.bgColor)
-
-			for ton in self.env.getTons():
-				ton.draw(self.screen)
-				for sensor in ton.sensors.itervalues():
-					sensor.draw(self.screen)
-
-			# blit to the screen
-			pygame.display.flip()
-
-			# try to stay at 60 FPS
-			self.clock.tick(60)
-
-def main(args):
-	# initialize pygame / screen size
-	pygame.init()
-	pygame.display.init()
-	size = pygame.display.list_modes()[0]
-	size = map(lambda x : int(x * 0.75), size)
-	screen = pygame.display.set_mode(size)
-	pygame.font_instance = pygame.font.Font(None, 20)
-	# create an instance of the game
-	game = Game(screen)
-
-	# start the main loop
-	game.run()
-
-# make sure that main get's called
-if __name__ == '__main__':
-	main(sys.argv)
+  def draw(self, screen):
+    for ton in self.env.getTons():
+      ton.draw(screen)
+      for sensor in ton.sensors.itervalues():
+        sensor.draw(screen)
+Go()
