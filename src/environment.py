@@ -12,8 +12,7 @@ class Environment(object):
   def writeComm(self, channelKey, ton, value):
     if channelKey not in self.comms:
       self.comms[channelKey] = {}
-    channel = self.comms[channelKey]
-    channel[ton] = value
+    self.comms[channelKey][ton] = value
 
   def readComm(self, channelKey, ton):
     if channelKey not in self.comms:
@@ -43,6 +42,5 @@ class Environment(object):
     right = cx + radius
     top = cy + radius
     bottom = cy - radius
-
     inBox = self.tonsInBox((left, top), (right, bottom))
     return set(x for x in inBox if hurrr.twod.distance2(x.getCenter(), center) <= radius**2)
