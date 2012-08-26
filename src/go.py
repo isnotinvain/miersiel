@@ -1,10 +1,11 @@
 import random
 
+import hurrr
 import hurrr.gui
 import hurrr.physics
 
 from environment import Environment
-from automatons import PointBot as Bot
+from automatons.leaderbot import LeaderBot as Bot
 
 class Go(object):
   def __init__(self):
@@ -12,7 +13,7 @@ class Go(object):
                                    updateFunc=lambda: self.update(), \
                                    drawFunc=lambda screen:self.draw(screen), \
                                    screenToWorldRatio=25.0,
-                                   bgColor=(0,0,0))
+                                   bgColor=hurrr.colors.LCARS.BLACK)
     self.window.run(setupWindow=lambda w: self.setupWindow(w))
 
   def setupWindow(self, window):
