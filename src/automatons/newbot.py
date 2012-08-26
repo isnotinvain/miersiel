@@ -4,12 +4,14 @@ import pygame
 
 import hurrr
 
-from automaton import Automaton, Behavior
+from automaton import *
+from behavior import *
 import Box2D as box2d
 from sensors import Nose
+from environment import Pheromone
 
 class NewBot(Automaton):
-  def __init__(self, env, sim, pos, color=(255, 153, 0), radius=0.5, density=1.0, restitution=0.6, friction=0.5):
+  def __init__(self, env, sim, pos, color=hurrr.colors.LCARS.ORANGE, radius=0.5, density=1.0, restitution=0.6, friction=0.5):
     Automaton.__init__(self, env, sim)
     self.color = color
     self.drawColor = color
@@ -31,6 +33,7 @@ class NewBot(Automaton):
     self.maxTorque = 10
 
     self.hold = self.getCenter()
+    self.leader = None
 
     self.sensors['nose'] = Nose(self.env, self, 4.0, shouldDraw=False)
     self.behavior = self.__genBehavior()
@@ -38,15 +41,15 @@ class NewBot(Automaton):
   def draw(self, screen):
     wCenter = self.getCenter()
     sCenter = hurrr.twod.ints(self.env.camera.toScreen(wCenter))
-    self.drawColor = (153,153,255) if self.isLeader else self.color
+    self.drawColor = hurrr.colors.LCARS.PURPLE if self.leader else self.color
     pygame.draw.circle(screen, self.drawColor, sCenter, int(self.env.camera.scalarToScreen(self.radius)))
     if self.leader:
-      leader = hurrr.twod.ints(self.env.camera.toScreen(self.leader.getCenter()))
-      pygame.draw.line(screen, (204, 102, 102), sCenter, leader, 1)
+      leader = hurrr.twod.ints(self.env.camera.toScreen(self.leader))
+      pygame.draw.line(screen, hurrr.colors.LCARS.GREEN, sCenter, leader, 1)
     else:
       hold = hurrr.twod.ints(self.env.camera.toScreen(self.hold))
-      pygame.draw.circle(screen, (204, 102, 153), hold, 3)
-      linecolor = (255, 255, 255)
+      pygame.draw.circle(screen, hurrr.colors.LCARS.BLUE, hold, 3)
+      linecolor = hurrr.colors.LCARS.WHITE
       pygame.draw.line(screen, linecolor, sCenter, hold, 1)
 
     cAngle = self.body.GetAngle()
@@ -55,7 +58,7 @@ class NewBot(Automaton):
     x += wCenter[0]
     y += wCenter[1]
     end = self.env.camera.toScreen((x,y))
-    pygame.draw.line(screen, (255, 255, 255), sCenter, end, 1)
+    pygame.draw.line(screen, hurrr.colors.LCARS.WHITE, sCenter, end, 1)
 
   def getCenter(self):
     return self.body.GetWorldCenter().tuple()
@@ -126,28 +129,54 @@ class NewBot(Automaton):
     return "bot at: " + str(self.getCenter()) + " id: " + str(id(self))
 
   def __genBehavior(self):
-    ifTooFarFromHold = lambda ton, env, sim: hurrr.twod.distance2(ton.getCenter(), ton.hold) > 5**2
+    hangAroundHold = ConditionalBehavior(
+     (
+       (lambda ton, env, sim: hurrr.twod.distance2(ton.getCenter(), ton.hold) > 5**2, GetCloseToPt(self.hold, 2.0)),
+     ),
+     default=Wander()
+    )
 
-    hangAroundHold = Wander()
-    goBackToHold = GetCloseToPt(self.hold, hangAroundHold, 2.0)
-    hangAroundHold.conditions = [(ifTooFarFromHold, goBackToHold)]
-    leaderBehavior = hangAroundHold
+    handAroundLeader = ConditionalBehavior(
+      (
+        (lambda ton, env, sim: ton.leader and hurrr.twod.distance2(ton.getCenter(), ton.leader) > 5**2, GetCloseToLeader(2.0)),
+      ),
+      default=Wander()
+    )
 
-    ifTooFarFromLeader = lambda ton, env, sim: ton.leader!=None and hurrr.twod.distance2(ton.getCenter(), ton.leader.getCenter()) > 5**2
-    hangAroundLeader = Wander()
-    goBackToLeader = GetCloseToLeader(hangAroundLeader, 3.0)
-    hangAroundLeader.conditions = [(ifTooFarFromLeader, goBackToLeader)]
+    return CompositeBehavior(
+             HerdMember(),
+             ConditionalBehavior(
+               (
+                 (lambda ton, env, sim: ton.leader, hangAroundHold),
+               ),
+               default=handAroundLeader
+             )
+           )
 
-    followerBehavior = hangAroundLeader
+class HerdMember(Behavior):
+  def __init__(self):
+    self.votes = {}
 
-    return HerdElectLeader(self, leaderBehavior, followerBehavior)
-#   leaderBehavior = Wander()
-    #return HerdElectLeader(self, )
+  def read(self, ton, env, sim):
+    ton.leader = None
+    if ton not in self.votes:
+      self.votes[ton] = random.random()
+
+    if not ton.sensors['nose']: return
+    self.bors = [(mone, ray) for mone, ray in ton.sensors['nose'].read() if mone.kind == HerdMember]
+    if len(self.bors) > 0:
+      mone, ray = max(self.bors, key=lambda (mone, _): mone.value)
+      if mone.value > self.votes[ton]:
+        ton.leader = mone.pos
+    if ton.leader:
+      ton.hold = ton.getCenter()
+
+  def write(self, ton, env, sim):
+    if not ton.leader:
+      env.addMone(Pheromone(ton.getCenter(), HerdMember, value=self.votes[ton], color=hurrr.colors.LCARS.TAN), 1)
 
 class Wander(Behavior):
-  def __init__(self, conditions=None):
-    self.color = (100,100,100)
-    Behavior.__init__(self, conditions)
+  def __init__(self):
     self.desiredAngle = random.random() * hurrr.angle.TWO_PI
 
   def act(self, ton, env, sim):
@@ -155,92 +184,19 @@ class Wander(Behavior):
     ton.turnTo(self.desiredAngle)
     ton.walkForwards(1.0)
 
-class HerdElectLeader(Behavior):
-  def __init__(self, ton, leaderBehavior, followerBehavior):
-    conditions = [(lambda ton, env, sim: self.isLeader, leaderBehavior), \
-                  (lambda ton, env, sim: self.isLeader == False and self.leader, followerBehavior)]
-
-    Behavior.__init__(self, conditions)
-    self.isLeader = None
-    self.leader = None
-    self.isLeaderCandidate = None
-    self.tieBreaker = None
-    ton.leader = None
-    ton.isLeader = None
-
-  def read(self, ton, env, sim):
-    if not ton.sensors['nose']: return
-    self.bors = ton.sensors['nose'].read()
-    self.herdDist = sum(ray[0] for ray in self.bors)
-    env.writeComm(HerdElectLeader, ton, self.herdDist)
-
-  def communicate(self, ton, env, sim):
-    if self.isLeaderCandidate:
-      otherCandidates = dict( \
-        (env.readComm("Leadership", bor[2])['tie-breaker'], bor[2]) \
-        for bor in self.bors if env.readComm("Leadership", bor[2])['isLeader'])
-      if otherCandidates:
-        maxRand = max(otherCandidates.iterkeys())
-        if self.tieBreaker > maxRand:
-          self.isLeader = True
-          ton.isLeader = True
-          ton.leader = None
-        elif self.tieBreaker == maxRand:
-          self.tieBreaker = random.random()
-          env.writeComm("Leadership", ton, {'isLeader': True, 'tie-breaker': self.tieBreaker})
-        else:
-          self.isLeaderCandidate = False
-          self.isLeader = False
-          ton.isLeader = False
-        env.writeComm("Leadership", ton, {'isLeader': False})
-      else:
-        self.isLeader = True
-        ton.isLeader = True
-        ton.leader = None
-
-    if self.isLeader == False:
-      potentialLeaders = tuple(bor[2] for bor in self.bors if env.readComm("Leadership", bor[2])['isLeader'])
-      if len(potentialLeaders) == 1:
-        self.leader = potentialLeaders[0]
-        ton.leader = self.leader
-    else:
-      herdDists = dict((env.readComm(HerdElectLeader, bor[2]), bor[2]) for bor in self.bors)
-      if herdDists:
-        minHerdDist = min(herdDists.iterkeys())
-        if self.herdDist > minHerdDist:
-          self.isLeader = False
-          ton.isLeader = False
-          env.writeComm("Leadership", ton, {'isLeader': False})
-        else:
-          self.tieBreaker = random.random()
-          env.writeComm("Leadership", ton, {'isLeader': True, 'tie-breaker': self.tieBreaker})
-          self.isLeaderCandidate = True
-
 class GetCloseToPt(Behavior):
-  def __init__(self, to, getThereBehavior, closeEnough):
-    self.color = (255,0,0)
+  def __init__(self, to, closeEnough):
     self.to = to
     self.closeEnough = closeEnough
-    conditions = [(self.isCloseEnough, getThereBehavior)]
-    Behavior.__init__(self, conditions)
-
-  def isCloseEnough(self, ton, env, sim):
-    return hurrr.twod.distance2(self.to, ton.getCenter()) <= self.closeEnough**2
 
   def act(self, ton, env, sim):
     ton.face(self.to)
     ton.walkForwards(1.0)
 
 class GetCloseToLeader(Behavior):
-  def __init__(self, getThereBehavior, closeEnough):
-    self.color = (255,0,0)
+  def __init__(self, closeEnough):
     self.closeEnough = closeEnough
-    conditions = [(self.isCloseEnough, getThereBehavior)]
-    Behavior.__init__(self, conditions)
-
-  def isCloseEnough(self, ton, env, sim):
-    return hurrr.twod.distance2(ton.getCenter(), ton.leader.getCenter()) <= self.closeEnough**2
 
   def act(self, ton, env, sim):
-    ton.face(ton.leader.getCenter())
+    ton.face(ton.leader)
     ton.walkForwards(1.0)

@@ -1,3 +1,4 @@
+import pygame
 import hurrr
 import hurrr.physics.util
 
@@ -6,20 +7,22 @@ class Environment(object):
   def __init__(self, sim, camera):
     self.sim = sim
     self.tons = set()
-    self.comms = {}
+    self.mones = hurrr.collections.TwoDIndex(3)
+    self.moneLifetimes = {}
     self.camera = camera
+    self.shouldDraw = True
 
-  def writeComm(self, channelKey, ton, value):
-    if channelKey not in self.comms:
-      self.comms[channelKey] = {}
-    self.comms[channelKey][ton] = value
+  def update(self):
+    newMoneLifetimes = dict((mone, life-1) for mone, life in self.moneLifetimes.iteritems() if life > 0)
+    for mone in [mone for mone in self.moneLifetimes.iterkeys() if mone not in newMoneLifetimes]:
+      self.removeMone(mone)
+    self.moneLifetimes = newMoneLifetimes
 
-  def readComm(self, channelKey, ton):
-    if channelKey not in self.comms:
-      return None
-    if ton not in self.comms[channelKey]:
-      return None
-    return self.comms[channelKey][ton]
+  def draw(self, screen):
+    if self.shouldDraw:
+      for mone in self.moneLifetimes.iterkeys():
+        rect = (hurrr.twod.add(self.camera.toScreen(mone.pos), (-5, -5)), (10,10))
+        pygame.draw.rect(screen, mone.color, rect)
 
   def addTon(self, ton):
     self.tons.add(ton)
@@ -27,8 +30,23 @@ class Environment(object):
   def getTons(self):
     return self.tons
 
-  def tonsInBox(self, leftTop, rightBottom):
-    bodies = hurrr.physics.util.bodiesInRegion(self.sim.world, (leftTop, rightBottom))
+  def addMone(self, mone, life):
+    self.mones[mone.pos] = mone
+    self.moneLifetimes[mone] = life
+
+  def removeMone(self, mone):
+    del self.mones[mone]
+    del self.moneLifetimes[mone]
+
+  def monesInBox(self, pt1, pt2):
+    return self.mones[pt1:pt2:True]
+
+  def monesInSquare(self, center, distance):
+    return self.mones[center:distance:True]
+
+  def tonsInBox(self, pt1, pt2):
+    pt1, pt2 = hurrr.twod.normalizeRect(pt1, pt2)
+    bodies = hurrr.physics.util.bodiesInRegion(self.sim.world, (leftBottom, rightTop))
     tons = set()
     for body in bodies:
       parent = body.userData['parent']
@@ -42,5 +60,13 @@ class Environment(object):
     right = cx + radius
     top = cy + radius
     bottom = cy - radius
-    inBox = self.tonsInBox((left, top), (right, bottom))
+    inBox = self.tonsInBox((left, bottom), (right, top))
+    # todo: use two circumscribed circle?
     return set(x for x in inBox if hurrr.twod.distance2(x.getCenter(), center) <= radius**2)
+
+class Pheromone(object):
+  def __init__(self, pos, kind, value=None, color=hurrr.colors.LCARS.WHITE):
+    self.pos = pos
+    self.kind = kind
+    self.value = value
+    self.color = color

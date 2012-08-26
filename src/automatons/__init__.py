@@ -1,2 +1,2 @@
-from automaton import Automaton
-from newbot import NewBot
+from automaton import *
+from behavior import *

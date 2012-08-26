@@ -4,7 +4,7 @@ import hurrr.gui
 import hurrr.physics
 
 from environment import Environment
-from automatons import NewBot as Bot
+from automatons.newbot import NewBot as Bot
 
 class Go(object):
   def __init__(self):
@@ -26,12 +26,13 @@ class Go(object):
       self.env.addTon(Bot(self.env,self.world, (x,y)))
 
   def update(self):
+    self.env.update()
+
     for ton in self.env.getTons():
-      ton.checkConditions()
       ton.read()
 
     for ton in self.env.getTons():
-      ton.communicate()
+      ton.write()
 
     for ton in self.env.getTons():
       ton.act()
@@ -44,4 +45,5 @@ class Go(object):
       ton.draw(screen)
       for sensor in ton.sensors.itervalues():
         sensor.draw(screen)
+    self.env.draw(screen)
 Go()
