@@ -1,2 +1,1 @@
-from automaton import *
-from behavior import *
+from pointbot import PointBot

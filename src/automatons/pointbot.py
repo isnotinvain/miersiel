@@ -10,7 +10,7 @@ import Box2D as box2d
 from sensors import Nose
 from environment import Pheromone
 
-class NewBot(Automaton):
+class PointBot(Automaton):
   def __init__(self, env, sim, pos, color=hurrr.colors.LCARS.ORANGE, radius=0.5, density=1.0, restitution=0.6, friction=0.5):
     Automaton.__init__(self, env, sim)
     self.color = color

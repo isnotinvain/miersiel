@@ -1,4 +1,5 @@
 class Behavior(object):
+
   def read(self, ton, env, sim):
     pass
 
@@ -9,6 +10,7 @@ class Behavior(object):
     pass
 
 class CompositeBehavior(Behavior):
+
   def __init__(self, *behaviors):
     self.behaviors = list(behaviors) if behaviors else []
 
@@ -25,6 +27,7 @@ class CompositeBehavior(Behavior):
       behavior.act(ton, env, sim)
 
 class ConditionalBehavior(Behavior):
+
   def __init__(self, conditionals, default=Behavior()):
     self.conditionals = conditionals or ()
     self.current = None

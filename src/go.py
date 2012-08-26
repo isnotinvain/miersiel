@@ -4,7 +4,7 @@ import hurrr.gui
 import hurrr.physics
 
 from environment import Environment
-from automatons.newbot import NewBot as Bot
+from automatons import PointBot as Bot
 
 class Go(object):
   def __init__(self):
