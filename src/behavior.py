@@ -9,6 +9,20 @@ class Behavior(object):
   def act(self, ton, env, sim):
     pass
 
+class DelegatingBehavior(Behavior):
+
+  def __init__(self, behavior):
+    self.behavior = behavior
+
+  def read(self, ton, env, sim):
+    self.behavior.read(ton, env, sim)
+
+  def write(self, ton, env, sim):
+    self.behavior.write(ton, env, sim)
+
+  def act(self, ton, env, sim):
+    self.behavior.act(ton, env, sim)
+
 class CompositeBehavior(Behavior):
 
   def __init__(self, *behaviors):

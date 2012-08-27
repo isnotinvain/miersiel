@@ -16,8 +16,8 @@ class LeaderBot(PointBot):
   def draw(self, screen):
     wCenter = self.getCenter()
     sCenter = hurrr.twod.ints(self.env.camera.toScreen(wCenter))
-    self.drawColor = hurrr.colors.LCARS.PURPLE if self.herdMember.leadersMone else self.color
-    pygame.draw.circle(screen, self.drawColor, sCenter, int(self.env.camera.scalarToScreen(self.radius)))
+    drawColor = hurrr.colors.LCARS.PURPLE if self.herdMember.leadersMone else self.color
+    pygame.draw.circle(screen, drawColor, sCenter, int(self.env.camera.scalarToScreen(self.radius)))
     if self.herdMember.leadersMone:
       leader = hurrr.twod.ints(self.env.camera.toScreen(self.herdMember.leadersMone.pos))
       pygame.draw.line(screen, hurrr.colors.LCARS.GREEN, sCenter, leader, 1)
@@ -38,19 +38,9 @@ class LeaderBot(PointBot):
   def genBehavior(self):
     self.herdMember = HerdMember()
 
-    hangAroundHold = ConditionalBehavior(
-     (
-       (lambda ton, env, sim: hurrr.twod.distance2(ton.getCenter(), self.herdMember.hold) > 5**2, GetCloseToPt(self.herdMember.hold, 2.0)),
-     ),
-     default=Wander()
-    )
+    hangAroundHold = HangAround(lambda ton, env, sim: self.herdMember.hold, 2.0, 2.0, 5.0)
 
-    handAroundLeader = ConditionalBehavior(
-      (
-        (lambda ton, env, sim: self.herdMember.leadersMone and hurrr.twod.distance2(ton.getCenter(), self.herdMember.leadersMone) > 5**2, GetCloseToLeader(2.0, self.herdMember)),
-      ),
-      default=Wander()
-    )
+    handAroundLeader = HangAround(lambda ton, env, sim: self.herdMember.leadersMone, 2.0, 2.0, 5.0)
 
     return CompositeBehavior(
              self.herdMember,

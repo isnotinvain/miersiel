@@ -1,17 +1,18 @@
 import random
+import pygame
 
 import hurrr
 import hurrr.gui
 import hurrr.physics
 
 from environment import Environment
-from automatons.leaderbot import LeaderBot as Bot
+from automatons.herdbot import HerdBot as Bot
 
 class Go(object):
   def __init__(self):
-    self.window = hurrr.gui.Window( \
-                                   updateFunc=lambda: self.update(), \
-                                   drawFunc=lambda screen:self.draw(screen), \
+    self.window = hurrr.gui.BorderScrollingWindow(
+                                   updateFunc=lambda: self.update(),
+                                   drawFunc=lambda screen:self.draw(screen),
                                    screenToWorldRatio=25.0,
                                    bgColor=hurrr.colors.LCARS.BLACK)
     self.window.run(setupWindow=lambda w: self.setupWindow(w))
@@ -20,6 +21,7 @@ class Go(object):
     wx, wy = window.size
     worldDims = window.camera.scalarToWorld(wx), window.camera.scalarToWorld(wy)
     self.world = hurrr.physics.Simulator(dimensions=((0,0),worldDims))
+    window.camera.worldPos = hurrr.twod.mul(worldDims, 0.5)
     self.env = Environment(self.world, window.camera)
 
     for i in xrange(100):

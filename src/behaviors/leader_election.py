@@ -34,12 +34,3 @@ class LeaderElection(Behavior):
       color = hurrr.colors.LCARS.RED
       kind = LeaderElection.MONES.LEADER
     env.addMone(Pheromone(ton.getCenter(), kind, value=self.vote, color=color), 1)
-
-class GetCloseToLeader(Behavior):
-  def __init__(self, closeEnough, leaderElection):
-    self.closeEnough = closeEnough
-    self.leaderElection = leaderElection
-
-  def act(self, ton, env, sim):
-    ton.face(self.leaderElection.leadersMone.pos)
-    ton.walkForwards(3.0)
